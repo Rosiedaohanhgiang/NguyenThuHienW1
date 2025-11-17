@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hành trình Lãnh đạo Coach | Nguyễn Thu Hiền</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Cool Neutrals (Nền: gray-50, Thẻ: white, Chữ: gray-800, Nhấn: indigo-600, Phân tích: teal-600) -->
+    <!-- 
+    Application Structure Plan: 
+    Thiết kế: Dashboard tương tác 1 trang, dựa trên logic của app Hoàng Thu Minh.
+    Cấu trúc: 1. Tổng quan (Thông tin HV), 2. Tự đánh giá (Trích xuất điểm từ Phân tích P2), 3. Kế hoạch & Phản tư (Trích xuất cam kết & check-in từ Phân tích P3, P4), 4. Phân tích & Đề xuất (Nội dung chính từ Phân tích P1, P2, P5).
+    Điều hướng: Thanh nav trên cùng để chuyển đổi các mục. Mục 4 (Phân tích) có các tab nội bộ (Chẩn đoán, Đề xuất).
+    Lý do: Logic này ("dữ liệu" tách biệt với "phân tích") đã được xác nhận là hữu ích. Dù tài liệu nguồn gộp chung, app này sẽ "giải nén" chúng về đúng cấu trúc logic, giúp bà Hiền thấy rõ dữ liệu của mình (Tasks 1-3) và phân tích của chuyên gia (P1, P5) một cách riêng biệt.
+    -->
+    <!-- 
+    Visualization & Content Choices:
+    1. Thông tin: Điểm tự đánh giá (Trích từ P2 của doc). Mục tiêu: Hiển thị điểm mạnh/yếu. Viz: Biểu đồ Radar (Chart.js). Tương tác: Lọc xem chi tiết. Lý do: Trực quan hóa "khoảng cách" mà P2 phân tích. Thư viện: Chart.js (Canvas).
+    2. Thông tin: Kế hoạch & Phản tư (Trích từ P3, P4 của doc). Mục tiêu: Trình bày dữ liệu gốc. Viz: Các thẻ HTML/Tailwind mô phỏng Task 2, Task 3. Lý do: Tái tạo lại các tài liệu gốc để logic app được nhất quán. Thư viện: HTML/Tailwind.
+    3. Thông tin: Chẩn đoán cốt lõi (Từ P1, P2, P4 của doc). Mục tiêu: Giải thích rào cản. Viz: Thẻ text, danh sách. Lý do: Trình bày phân tích văn bản. Thư viện: HTML/Tailwind.
+    4. Thông tin: Đề xuất Chiến lược (Từ P5 của doc). Mục tiêu: Cung cấp lộ trình. Viz: Các thẻ HTML có cấu trúc 4 khuyến nghị. Tương tác: Tab nội bộ. Lý do: Dễ theo dõi, phân tách rõ ràng chẩn đoán và hành động. Thư viện: HTML/Tailwind.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-button {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 2px solid transparent;
+            transition: color 0.3s, border-color 0.3s;
+            white-space: nowrap;
+        }
+        .nav-button.active {
+            color: #4F46E5; /* indigo-600 */
+            border-color: #4F46E5;
+            font-weight: 600;
+        }
+        .nav-button:not(.active):hover {
+            color: #6366F1; /* indigo-500 */
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        
+        .analysis-tab-button {
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            color: #4B5563;
+        }
+        .analysis-tab-button.active {
+            color: #0D9488; /* teal-600 */
+            border-color: #0D9488;
+            font-weight: 600;
+        }
+        .analysis-content-pane {
+            display: none;
+        }
+        .analysis-content-pane.active {
+            display: block;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <nav id="main-nav" class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row justify-between items-center py-3">
+                <h1 class="text-xl font-bold text-indigo-600 mb-2 sm:mb-0">Hành trình Lãnh đạo Coach</h1>
+                <div class="flex flex-wrap justify-center sm:justify-end gap-x-2 sm:gap-x-4">
+                    <button data-target="overview" class="nav-button active">Tổng quan</button>
+                    <button data-target="assessment" class="nav-button">Tự đánh giá</button>
+                    <button data-target="plan-reflection" class="nav-button">Kế hoạch & Phản tư</button>
+                    <button data-target="analysis" class="nav-button font-bold text-teal-600">Phân tích & Đề xuất</button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="content-overview" class="content-section active">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Tổng quan Hành trình</h2>
+                <p class="text-lg text-gray-600">Thông tin tổng hợp về cam kết và đánh giá năng lực của học viên.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-indigo-600 border-b pb-2 mb-4">Thông tin Học viên</h3>
+                    <div class="space-y-2">
+                        <p><strong>Họ và tên:</strong> Nguyễn Thu Hiền</p>
+                        <p><strong>Chức vụ:</strong> AM (Area Manager)</p>
+                        <p><strong>Phòng ban:</strong> Production Activity</p>
+                    </div>
+                </div>
+
+                <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-indigo-600 border-b pb-2 mb-4">Cam kết 30 ngày (Trích từ Phân tích P3)</h3>
+                    <blockquote class="text-xl font-medium text-gray-700 italic p-4 bg-gray-50 rounded-md">
+                        "Chuyển từ việc “chỉ thị” sang việc “lắng nghe và khơi gợi” để nhân viên chủ động hơn."
+                    </blockquote>
+                </div>
+
+                <div class="md:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-indigo-600 border-b pb-2 mb-4">Tổng điểm Tự đánh giá (Trích từ Phân tích P2)</h3>
+                    <div class="flex items-center">
+                        <span class="text-4xl font-bold text-indigo-600 mr-3">20 / 45</span>
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="bg-indigo-600 h-4 rounded-full" style="width: 44.44%"></div>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-500 mt-2">Điểm số (2+2+3+2+2+2+2+3+2 = 20) phản ánh sự tự nhận thức cao và "có ý thức về sự thiếu hụt" (Conscious Incompetence).</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="content-assessment" class="content-section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Tự đánh giá Năng lực (Tái lập từ P2)</h2>
+                <p class="text-lg text-gray-600">Phân tích chi tiết 9 tiêu chí năng lực. Dữ liệu điểm số được trích xuất từ Phân tích P2.</p>
+            </div>
+            
+            <div class="bg-white p-4 sm:p-6 rounded-lg shadow-md">
+                <div class="chart-container mx-auto">
+                    <canvas id="assessmentChart"></canvas>
+                </div>
+                
+                <div class="mt-8">
+                    <h3 class="text-lg font-semibold text-indigo-600 text-center mb-4">Lọc xem chi tiết theo nhóm năng lực</h3>
+                    <div id="assessment-filters" class="flex flex-wrap justify-center gap-2 mb-6">
+                        <button data-category="all" class="filter-button bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-medium">Tất cả (9)</button>
+                        <button data-category="foundational" class="filter-button bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium">1. Kỹ năng nền tảng (3)</button>
+                        <button data-category="feedback" class="filter-button bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium">2. Mô hình & Công cụ (2)</button>
+                        <button data-category="situational" class="filter-button bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium">3. Xử lý tình huống (2)</button>
+                        <button data-category="impact" class="filter-button bg-gray-200 text-gray-700 px-4 py-2 rounded-full text-sm font-medium">4. Tác động & Kết quả (2)</button>
+                    </div>
+                    
+                    <div id="assessment-details" class="p-4 bg-gray-50 rounded-lg border border-gray-200 min-h-[150px]">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="content-plan-reflection" class="content-section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">Kế hoạch & Phản tư (Tái lập từ P3, P4)</h2>
+                <p class="text-lg text-gray-600">Mô phỏng lại Kế hoạch hành động và Check-in cuối tuần, dựa trên các trích dẫn từ tài liệu phân tích.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Mô phỏng Kế hoạch Hành động (Task 2)</h3>
+                    <div class="space-y-4">
+                        <div class="border border-gray-200 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-800">Vấn đề xác định:</h4>
+                            <p class="mt-1 text-gray-700">Giải quyết "việc cấp dưới thiếu chủ động / không cẩn thận".</p>
+                        </div>
+                        <div class="border border-gray-200 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-800">Kỹ năng tâm đắc:</h4>
+                            <p class="mt-1 text-gray-700">"Tạo các câu hỏi gợi mở để Coachee chủ động".</p>
+                        </div>
+                        <div class="border border-gray-200 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-800">HÀNH ĐỘNG 1</h4>
+                            <p class="mt-2"><strong>Hành động:</strong> Coaching cho ít nhất 1 nhân viên để họ nhận thức được điểm yếu của bản thân mình, chủ động nâng cao động lực và tinh thần trách nhiệm.</p>
+                            <p class="mt-1"><strong>Đo lường:</strong> 1 buổi Coaching.</p>
+                            <p class="mt-1"><strong>Thời gian:</strong> 21/11.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Mô phỏng Check-in Cuối tuần 1 (Task 3)</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-indigo-600">1. Một điều đã thử (Thử nghiệm an toàn):</h4>
+                            <p class="text-gray-700 mt-1 pl-4 border-l-2">"Tôi đã thực hành với con tôi, trong cuộc trao đổi với con về yêu cầu học tập."</p>
+                            <p class="text-gray-700 mt-1 pl-4 border-l-2">"Thay vì đưa ra các vấn đề... tôi đã gợi ý để con tự nhìn ra vấn đề."</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-indigo-600">2. Một bài học rút ra (Khoảnh khắc "Aha!"):</h4>
+                            <p class="text-gray-700 mt-1 pl-4 border-l-2 font-medium">"Tôi nhận ra, khi như vậy, con tôi <strong class="text-indigo-700">chủ động suy nghĩ</strong> và có thể <strong class="text-indigo-700">nhận thức sâu sắc hơn</strong> là chỉ nghe mẹ nói như mọi khi."</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-indigo-600">3. Một cam kết mới (Leo thang):</h4>
+                            <p class="text-gray-700 mt-1 pl-4 border-l-2 font-medium">"Tôi cố gắng có câu hỏi mở trong 1 cuộc trò chuyện với cấp dưới."</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="content-analysis" class="content-section">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-teal-700 mb-2">Phân tích & Đề xuất Lộ trình Phát triển</h2>
+                <p class="text-lg text-gray-600">Chẩn đoán chuyên sâu về rào cản và đề xuất lộ trình, dựa trên Phân tích P1, P2 và P5.</p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md">
+                <div id="analysis-tabs" class="border-b border-gray-200 flex flex-wrap">
+                    <button data-target="diag" class="analysis-tab-button active">Chẩn đoán Cốt lõi</button>
+                    <button data-target="tools" class="analysis-tab-button">Công cụ & Kịch bản</button>
+                    <button data-target="roadmap" class="analysis-tab-button">Lộ trình 30 Ngày (Mới)</button>
+                </div>
+
+                <div id="analysis-contents" class="p-4 sm:p-6 lg:p-8">
+                    <div id="pane-diag" class="analysis-content-pane active space-y-6">
+                        <h3 class="text-2xl font-semibold text-gray-900">PHẦN 1-4: Phân tích Chẩn đoán và Rào cản Cốt lõi</h3>
+                        
+                        <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <h4 class="font-bold text-red-700">1.1. Bối cảnh: Môi trường Thử thách (Production Activity)</h4>
+                            <p class="mt-2">Bộ phận "Production Activity" là môi trường vận hành áp lực cao, chi phối bởi KPIs (OEE, Kaizen, an toàn). Phong cách mặc định là "chỉ thị" và "giải quyết vấn đề tức thời".</p>
+                            <p class="mt-2">Điều này tạo ra <strong class="text-red-700">xung đột cốt lõi</strong>: Thách thức của bà Hiền không chỉ là học kỹ năng *mới* (coaching), mà là phải *gỡ bỏ* hành vi (chỉ thị) đã ăn sâu và được hệ thống vận hành củng cố hàng ngày.</p>
+                        </div>
+
+                        <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <h4 class="font-bold text-indigo-700">1.2. Chẩn đoán Tổng thể: "Người Học Có Ý thức và Thận trọng"</h4>
+                            <p class="mt-2">Hồ sơ của bà Hiền nổi lên là một "Người Học Có Ý thức" (Conscious Learner) và rất thận trọng.</p>
+                             <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li><strong>Mức độ Tự nhận thức Cao:</strong> Tự đánh giá hàng loạt điểm '2' (Lúng túng khi áp dụng).</li>
+                                <li><strong>Kế hoạch Nhất quán:</strong> Có logic rõ ràng (Vấn đề -> Kỹ năng -> Cam kết).</li>
+                                <li><strong>Chiến lược Học tập An toàn:</strong> Lựa chọn thử nghiệm rủi ro thấp trước (với con trai).</li>
+                            </ul>
+                            <p class="mt-2">Việc bà Hiền tự cho mình hàng loạt điểm '2' là một dấu hiệu rất tích cực. Nó cho thấy bà đã bước vào giai đoạn "Có ý thức về sự thiếu hụt" (Conscious Incompetence) - giai đoạn cần thiết để việc học tập thực sự bắt đầu.</p>
+                        </div>
+
+                        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <h4 class="font-bold text-gray-800">2.1. Phân tích Chi tiết Bảng điểm Tự đánh giá (20/45)</h4>
+                             <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li><strong>Nhóm 1: Kỹ năng Nền tảng (1.1, 1.2, 1.3):</strong> Điểm 2, 2, 3. Tự tin về *tâm lý* (tạo không gian an toàn - 3/5), nhưng thiếu tự tin về *kỹ thuật* (lắng nghe, hỏi - 2/5).</li>
+                                <li><strong>Nhóm 2: Mô hình & Công cụ (2.1, 2.2):</strong> Điểm 2, 2. Thiếu tự tin với cả GROW và SBI-D.</li>
+                                <li><strong>Nhóm 3: Xử lý Tình huống Khó (3.1, 3.2):</strong> Điểm 2, 2. Chưa sẵn sàng xử lý ca khó (ngại thay đổi, mất động lực).</li>
+                                <li><strong>Nhóm 4: Tác động & Kết quả (4.1, 4.2):</strong> Điểm 3, 2. Đây là cụm điểm quan trọng nhất.</li>
+                            </ul>
+                        </div>
+
+                        <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <h4 class="font-bold text-blue-700">2.2. Khoảng cách Chẩn đoán: "Khoảng cách giữa Niềm tin và Kỹ năng"</h4>
+                            <p class="mt-2">Phát hiện quan trọng nhất là sự mâu thuẫn giữa hai mục cuối cùng:</p>
+                            <ul class="list-disc list-inside mt-2 space-y-1">
+                                <li><strong>4.1 "Thúc đẩy tinh thần chủ động" (Điểm 3/5):</strong> Đây là câu hỏi về <strong class="text-blue-700">niềm tin</strong> vào phong cách *hiện tại*.</li>
+                                <li><strong>4.2 "Dùng coaching cải thiện chỉ số" (Điểm 2/5):</strong> Đây là câu hỏi về <strong class="text-blue-700">năng lực</strong> áp dụng kỹ năng *mới* để đạt *kết quả kinh doanh* (OEE, Kaizen).</li>
+                            </ul>
+                            <p class="mt-2">Sự chênh lệch này cho thấy: Bà Hiền có thể vẫn đang nhìn nhận coaching như một thứ "tốt nếu có" (nice-to-have) về mặt tinh thần, chứ chưa tin nó là một công cụ "phải có" (must-have) để thúc đẩy hiệu suất kinh doanh. Nếu OEE giảm, bà sẽ quay lại với "chỉ thị".</p>
+                        </div>
+                        
+                        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <h4 class="font-bold text-gray-800">3.1. Phân tích Mục tiêu (The "What" and "Why")</h4>
+                            <p class="mt-2">Có một sự liên kết logic và chặt chẽ tuyệt đối trong kế hoạch của bà Hiền:</p>
+                             <ul class="list-decimal list-inside mt-2 space-y-1">
+                                <li><strong>Chẩn đoán Vấn đề:</strong> "việc cấp dưới thiếu chủ động / không cẩn thận".</li>
+                                <li><strong>Xác định Kỹ năng:</strong> "Tạo các câu hỏi gợi mở để Coachee chủ động".</li>
+                                <li><strong>Cam kết Thay đổi:</strong> "Chuyển từ việc “ chỉ thị” sang việc “ lắng nghe và khơi gợi”".</li>
+                            </ul>
+                             <p class="mt-2">Việc bà Hiền tự thiết lập giả thuyết nhân quả (Chỉ thị -> Thiếu chủ động; Lắng nghe -> Chủ động hơn) là dấu hiệu của sự tiếp thu sâu sắc.</p>
+                        </div>
+
+                        <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <h4 class="font-bold text-yellow-700">3.2 & 4.3. Phân tích Hành động & Cam kết</h4>
+                             <p class="mt-2"><strong>Hành động 1 (Task 2):</strong> "Coaching cho ít nhất 1 nhân viên...", Đo lường: "1 buổi Coaching", Thời gian: "21/11".</p>
+                             <p class="mt-1"><strong>Phân tích:</strong> Đây là một kế hoạch SMART nhưng chỉ đo lường *hoạt động* (activity) chứ không phải *tác động* (impact). Việc bỏ trống Hành động 2 & 3 củng cố chẩn đoán "Người Học Thận trọng".</p>
+                             <p class="mt-2"><strong>Cam kết Tuần tới (Task 3):</strong> "Tôi cố gắng có câu hỏi mở trong 1 cuộc trò chuyện với cấp dưới".</p>
+                             <p class="mt-1"><strong>Phân tích:</strong> Đây là một sự leo thang hợp lý. Bà đã thành công ở nhà, và bây giờ sẵn sàng chuyển sang công việc. Cam kết một *hành vi vi mô* (1 câu hỏi mở) có khả năng thành công cao, quan trọng để xây dựng đà.</p>
+                        </div>
+
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <h4 class="font-bold text-green-700">4.1 & 4.2. "Thử nghiệm An toàn" & Khoảnh khắc "Aha!"</h4>
+                            <p class="mt-2">Việc bà Hiền không áp dụng ở công ty mà "thực hành với con tôi" là một chiến lược học tập vô cùng thông minh. Bà đã tự tìm đến một "không gian tâm lý an toàn" (psychologically safe sandbox) nơi rủi ro thấp.</p>
+                            <p class="mt-2">Trải nghiệm này đã dẫn đến một <strong class="text-green-700">khoảnh khắc "vỡ lẽ" (Aha! moment)</strong>. Bà nhận ra khi bà hỏi, "con tôi <strong class="text-green-600">chủ động suy nghĩ</strong> và có thể <strong class="text-green-600">nhận thức sâu sắc hơn</strong>".</p>
+                            <p class="mt-1">Bà đã tạo ra một bằng chứng sống cho chính mình rằng phương pháp này có hiệu quả, chuyển từ "tin" (believing) sang "biết" (knowing).</p>
+                        </div>
+
+                    </div>
+
+                    <div id="pane-tools" class="analysis-content-pane space-y-8">
+                        <h3 class="text-2xl font-semibold text-gray-900">Công cụ & Kịch bản (Dựa trên Đề xuất P5)</h3>
+                        <p class="text-gray-600">Phần này cung cấp các công cụ và kịch bản "just-in-time" được đề xuất trong Phân tích P5 để hỗ trợ bà Hiền thực hiện cam kết coaching ngày 21/11.</p>
+
+                        <div>
+                            <h4 class="text-xl font-semibold text-teal-700">Công cụ 1: Kết nối Lý thuyết (GROW) - (Từ Đề xuất 5.2)</h4>
+                            <p class="mt-2 text-gray-600">Phân tích 4.2 cho thấy bà đã dùng GROW một cách tự nhiên. Đây là cách "phi thần bí hóa" mô hình, cho thấy bà *đã* có kỹ năng này (tự tin 2/5 là không đúng).</p>
+                            <div class="mt-4 p-4 bg-gray-50 border rounded-lg">
+                                <p class="font-semibold">Câu hỏi của bà Hiền (với con):</p>
+                                <p class="mt-2 italic text-gray-700">"Nếu con không đạt học sinh giỏi trong lớp 12 quan trọng này, thì sẽ có điều gì xảy ra?"</p>
+                                <hr class="my-3">
+                                <p class="font-semibold">Kết nối với Mô hình GROW:</p>
+                                <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+                                    <li>Đây là một câu hỏi 'O' (Options) và 'W' (Will) rất mạnh mẽ.</li>
+                                    <li>Nó buộc người được coach (con trai) phải tự mình khám phá các <strong>Lựa chọn</strong> (học hay không học) và <strong>Hậu quả</strong> (điều gì xảy ra).</li>
+                                    <li>Nó chuyển quyền sở hữu vấn đề và giải pháp cho người được coach.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xl font-semibold text-teal-700">Công cụ 2: Kịch bản Thực hành (SBI-D) - (Từ Đề xuất 5.3)</h4>
+                            <p class="mt-2 text-gray-600">Đề xuất 5.3 gợi ý một buổi micro-coaching để thực hành SBI-D (tự tin 2/5) cho vấn đề "nhân viên không cẩn thận". Dưới đây là một kịch bản mẫu.</p>
+                            <div class="overflow-x-auto mt-4">
+                                <table class="w-full border-collapse">
+                                    <thead>
+                                        <tr>
+                                            <th class="border p-3 text-left bg-gray-50 w-1/4">Phán xét (Gây phòng thủ)</th>
+                                            <th class="border p-3 text-left bg-teal-50 w-3/4">Kịch bản SBI-D (Cho "Nhân viên không cẩn thận")</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="border p-3 align-top text-red-600">"Sao em làm việc ẩu thế?"<br/>"Em lại không cẩn thận rồi."<br/>"Em có biết việc này nghiêm trọng không?"</td>
+                                            <td class="border p-3 align-top bg-teal-50">
+                                                <strong>S (Tình huống):</strong> "Anh/Em này, trong báo cáo an toàn em vừa gửi cho chị lúc 3 giờ chiều nay..."<br/><br/>
+                                                <strong>B (Hành vi):</strong> "...chị thấy em đã ghi nhầm (hoặc bỏ sót) số liệu ở mục X và Y. Ví dụ, số giờ an toàn thực tế là 1000, nhưng em ghi là 100."<br/><br/>
+                                                <strong>I (Tác động):</strong> "...việc này làm cho toàn bộ báo cáo bị sai lệch. Nếu chị không phát hiện kịp và gửi lên cấp trên, nó sẽ ảnh hưởn đến... (ví dụ: đánh giá an toàn của bộ phận, hoặc quyết định của lãnh đạo)."<br/><br/>
+                                                <strong>D (Mong muốn):</strong> "Chúng ta có thể thảo luận một chút về quy trình kiểm tra chéo (double-check) của em trước khi gửi báo cáo không? Em thấy mình có thể làm gì để đảm bảo 100% số liệu chính xác cho lần sau?"
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="pane-roadmap" class="analysis-content-pane space-y-6">
+                        <h3 class="text-2xl font-semibold text-gray-900">Lộ trình 30 Ngày (Mới) - (Tổng hợp từ P5)</h3>
+                        <p class="text-gray-600">Đây là lộ trình 4 tuần đề xuất cho bà Hiền, được tổng hợp từ các khuyến nghị chiến lược trong Phân tích P5.</p>
+                        
+                        <div class="space-y-4">
+                            <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                <h4 class="font-semibold text-lg text-teal-700">Tuần 1: Củng cố & Cam kết (Từ 5.1, 5.2)</h4>
+                                <p class="mt-2"><strong>Hành động:</strong> (Tương tác với L&D/HRBP) Chia sẻ và được củng cố về "Thử nghiệm An toàn". Nhận thức rằng mình đã áp dụng GROW một cách tự nhiên.</p>
+                                <p class="mt-1"><strong>Cam kết của bà Hiền (Từ Task 3):</strong> Thực hiện cam kết "có 1 câu hỏi mở trong 1 cuộc trò chuyện với cấp dưới".</p>
+                                <p class="mt-1"><strong>Mục tiêu:</strong> Xây dựng sự tự tin. "Hợp pháp hóa" việc học tập. Chuyển thành công từ nhà -> nơi làm việc.</p>
+                            </div>
+                            
+                            <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                <h4 class="font-semibold text-lg text-teal-700">Tuần 2: Chuẩn bị & Trang bị Kỹ năng (Từ 5.3)</h4>
+                                <p class="mt-2"><strong>Hành động:</strong> Tham gia buổi "micro-coaching" 30 phút với L&D/HRBP.</p>
+                                <p class="mt-1"><strong>Trọng tâm:</strong> Đóng vai (role-play) thực hành <strong>kịch bản SBI-D</strong> (từ tab Công cụ) cho tình huống "nhân viên không cẩn thận".</p>
+                                <p class="mt-1"><strong>Mục tiêu:</strong> Nâng cao sự tự tin từ 2/5 lên 3/5 hoặc 4/5 cho kỹ năng SBI-D. Chuẩn bị cho buổi coaching tuần 3.</p>
+                            </div>
+
+                            <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                <h4 class="font-semibold text-lg text-teal-700">Tuần 3: Thực thi Cam kết (Hành động 1 - Task 2)</h4>
+                                <p class="mt-2"><strong>Hành động:</strong> Thực hiện cam kết cốt lõi: "Coaching cho ít nhất 1 nhân viên" (trước ngày 21/11).</p>
+                                <p class="mt-1"><strong>Công cụ áp dụng:</strong>
+                                    <br/>1. Bắt đầu bằng các câu hỏi mở (đã thực hành ở Tuần 1).
+                                    <br/>2. Áp dụng SBI-D (đã thực hành ở Tuần 2) nếu cần góp ý về "sự không cẩn thận".
+                                </p>
+                                <p class="mt-1"><strong>Mục tiêu:</strong> Hoàn thành 1 buổi coaching thực tế. Không cần hoàn hảo, chỉ cần hoàn thành.</p>
+                            </div>
+
+                            <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                                <h4 class="font-semibold text-lg text-teal-700">Tuần 4: Phản tư & Can thiệp Hệ thống (Từ 5.4)</h4>
+                                <p class="mt-2"><strong>Hành động của bà Hiền:</strong> Phản tư về buổi coaching Tuần 3. Ghi lại những gì hiệu quả, những gì khó khăn.</p>
+                                <p class="mt-1"><strong>Hành động với HRBP:</strong> Chia sẻ phản tư này với HRBP. Cung cấp thông tin về rào cản (nếu có) từ áp lực vận hành (OEE).</p>
+                                <p class="mt-1"><strong>Mục tiêu:</strong> Cung cấp dữ liệu để L&D/HRBP thực hiện khuyến nghị 5.4 ("Can thiệp Hệ thống"), làm việc với cấp trên để tạo "không gian an toàn" cho bà tiếp tục thực hành.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            const assessmentData = {
+                categories: {
+                    foundational: "1. KỸ NĂNG NỀN TẢNG",
+                    feedback: "2. MÔ HÌNH & CÔNG CỤ",
+                    situational: "3. XỬ LÝ TÌNH HUỐNG",
+                    impact: "4. TÁC ĐỘNG & KẾT QUẢ"
+                },
+                criteria: [
+                    { id: "1.1", text: "Tôi chủ động lắng nghe để hiểu nguyên nhân gốc rễ (ví dụ: lỗi lắp ráp, vấn đề an toàn)...", score: 2, category: "foundational" },
+                    { id: "1.2", text: "Tôi có khả năng đặt các câu hỏi mở, khơi gợi để giúp nhân viên tự suy ngẫm...", score: 2, category: "foundational" },
+                    { id: "1.3", text: "Tôi có khả năng tạo ra một không gian an toàn, tin cậy để nhân viên cởi mở chia sẻ...", score: 3, category: "foundational" },
+                    { id: "2.1", text: "Tôi tự tin sử dụng đầy đủ 4 bước của mô hình GROW để hướng dẫn nhân viên...", score: 2, category: "feedback" },
+                    { id: "2.2", text: "Tôi có khả năng dùng mô hình SBI-D để góp ý về một tình huống tiêu cực...", score: 2, category: "feedback" },
+                    { id: "3.1", text: "Tôi tự tin coaching một nhân viên... có chuyên môn cao nhưng ngại thay đổi...", score: 2, category: "situational" },
+                    { id: "3.2", text: "Tôi có khả năng coaching để khơi gợi lại động lực cho nhân viên... thoát khỏi sức ì...", score: 2, category: "situational" },
+                    { id: "4.1", text: "Tôi tin rằng phong cách lãnh đạo của mình đang thúc đẩy được tinh thần chủ động...", score: 3, category: "impact" },
+                    { id: "4.2", text: "Tôi có khả năng sử dụng coaching để góp phần cải thiện các chỉ số... (OEE, Kaizen)...", score: 2, category: "impact" }
+                ]
+            };
+
+            const navContainer = document.getElementById('main-nav');
+            const navButtons = navContainer.querySelectorAll('.nav-button');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            navContainer.addEventListener('click', (e) => {
+                if (e.target.matches('.nav-button')) {
+                    const targetId = e.target.dataset.target;
+                    
+                    navButtons.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.target === targetId);
+                    });
+                    
+                    contentSections.forEach(section => {
+                        section.classList.toggle('active', section.id === `content-${targetId}`);
+                    });
+                }
+            });
+
+            const assessmentDetailsContainer = document.getElementById('assessment-details');
+            const filterButtonsContainer = document.getElementById('assessment-filters');
+            const filterButtons = filterButtonsContainer.querySelectorAll('.filter-button');
+
+            function updateAssessmentDetails(category) {
+                let itemsToShow = [];
+                if (category === 'all') {
+                    itemsToShow = assessmentData.criteria;
+                } else {
+                    itemsToShow = assessmentData.criteria.filter(item => item.category === category);
+                }
+
+                if (itemsToShow.length === 0) {
+                    assessmentDetailsContainer.innerHTML = '<p class="text-gray-500 text-center">Không có dữ liệu.</p>';
+                    return;
+                }
+                
+                let categoryTitle = '';
+                if(category !== 'all') {
+                    categoryTitle = `<h4 class="text-md font-semibold text-gray-800 mb-3">${assessmentData.categories[category]}</h4>`;
+                }
+
+                assessmentDetailsContainer.innerHTML = `
+                    ${categoryTitle}
+                    <ul class="space-y-3">
+                        ${itemsToShow.map(item => `
+                            <li class="flex justify-between items-start">
+                                <span class="text-sm text-gray-700 flex-1 pr-4">${item.id}: ${item.text}</span>
+                                <span class="font-bold text-lg text-indigo-600">${item.score}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+            }
+
+            filterButtonsContainer.addEventListener('click', (e) => {
+                if (e.target.matches('.filter-button')) {
+                    const category = e.target.dataset.category;
+                    
+                    filterButtons.forEach(btn => {
+                        btn.classList.toggle('bg-indigo-600', btn.dataset.category === category);
+                        btn.classList.toggle('text-white', btn.dataset.category === category);
+                        btn.classList.toggle('bg-gray-200', btn.dataset.category !== category);
+                        btn.classList.toggle('text-gray-700', btn.dataset.category !== category);
+                    });
+                    
+                    updateAssessmentDetails(category);
+                }
+            });
+
+            updateAssessmentDetails('all');
+
+            const ctx = document.getElementById('assessmentChart').getContext('2d');
+            if (ctx) {
+                const chartData = {
+                    labels: assessmentData.criteria.map(c => `Tiêu chí ${c.id}`),
+                    datasets: [{
+                        label: 'Điểm Tự đánh giá',
+                        data: assessmentData.criteria.map(c => c.score),
+                        backgroundColor: 'rgba(79, 70, 231, 0.2)',
+                        borderColor: 'rgba(79, 70, 231, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(79, 70, 231, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(79, 70, 231, 1)'
+                    }]
+                };
+
+                const chartOptions = {
+                    maintainAspectRatio: false,
+                    responsive: true,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 10
+                                },
+                                color: '#333'
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                max: 5,
+                                min: 0,
+                                stepSize: 1,
+                                backdropColor: 'rgba(255, 255, 255, 0.75)',
+                                color: '#555'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#333'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const criterion = assessmentData.criteria[index];
+                                    let text = criterion.text;
+                                    if (text.length > 40) {
+                                        text = text.substring(0, 40) + '...';
+                                    }
+                                    return `${criterion.id}: ${text}`;
+                                },
+                                afterLabel: function(context) {
+                                    return `Điểm: ${context.parsed.r}`;
+                                }
+                            }
+                        }
+                    }
+                };
+
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: chartData,
+                    options: chartOptions
+                });
+            } else {
+                console.error("Không tìm thấy canvas 'assessmentChart'");
+            }
+
+            const analysisTabsContainer = document.getElementById('analysis-tabs');
+            const analysisTabButtons = analysisTabsContainer.querySelectorAll('.analysis-tab-button');
+            const analysisContentPanes = document.getElementById('analysis-contents').querySelectorAll('.analysis-content-pane');
+
+            analysisTabsContainer.addEventListener('click', (e) => {
+                if (e.target.matches('.analysis-tab-button')) {
+                    const targetId = e.target.dataset.target;
+
+                    analysisTabButtons.forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.target === targetId);
+                    });
+
+                    analysisContentPanes.forEach(pane => {
+                        pane.classList.toggle('active', pane.id === `pane-${targetId}`);
+                    });
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
