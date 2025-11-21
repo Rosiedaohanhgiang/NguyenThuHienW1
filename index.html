@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phân tích Hành trình Lãnh đạo Coach - Nguyễn Thu Hiền</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- 
+    Application Structure: 
+    - Single Page Application (SPA) logic using Vanilla JS for tab switching.
+    - Responsive design using Tailwind CSS.
+    - Data visualization using Chart.js.
+    - Content derived from the case study of Nguyen Thu Hien (Production Activity Manager).
+    -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 320px;
+            max-height: 400px;
+        }
+        @media (min-width: 640px) {
+            .chart-container {
+                height: 384px;
+            }
+        }
+        .tab-button[aria-current="page"] {
+            border-color: #0d9488; /* teal-600 */
+            color: #134e4a; /* teal-900 */
+        }
+        .tab-button {
+            border-bottom-width: 2px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .sub-tab-button[aria-current="true"] {
+            border-color: #4f46e5; /* indigo-600 */
+            color: #4338ca; /* indigo-700 */
+        }
+        .analysis-box {
+            background-color: #f0fdfa; /* teal-50 */
+            border-left: 4px solid #14b8a6; /* teal-500 */
+            padding: 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+        }
+        /* Custom scrollbar for horizontal tabs on mobile */
+        .overflow-x-auto::-webkit-scrollbar {
+            height: 4px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+            background-color: #d6d3d1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900">
+
+    <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-teal-800">Phân tích Hành trình Lãnh đạo Coach</h1>
+            <p class="text-xl text-stone-700 mt-1">Học viên: Nguyễn Thu Hiền - AM, Bộ phận Production Activity</p>
+        </header>
+
+        <div>
+            <!-- Main Navigation -->
+            <div class="border-b border-stone-300">
+                <nav class="flex -mb-px space-x-6 overflow-x-auto" aria-label="Tabs">
+                    <button id="tab-btn-assessment" class="tab-button py-3 px-2 text-sm sm:text-base sm:px-3 whitespace-nowrap" aria-current="page">
+                        1. Tự Đánh Giá
+                    </button>
+                    <button id="tab-btn-plan" class="tab-button py-3 px-2 text-sm sm:text-base sm:px-3 border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400 whitespace-nowrap">
+                        2. Kế Hoạch 30 Ngày
+                    </button>
+                    <button id="tab-btn-checkin" class="tab-button py-3 px-2 text-sm sm:text-base sm:px-3 border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400 whitespace-nowrap">
+                        3. Check-in Tuần 1
+                    </button>
+                    <button id="tab-btn-roadmap" class="tab-button py-3 px-2 text-sm sm:text-base sm:px-3 border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400 whitespace-nowrap font-bold text-indigo-700 hover:text-indigo-800">
+                        4. Phân tích & Lộ trình
+                    </button>
+                </nav>
+            </div>
+
+            <div class="mt-6">
+                <!-- Tab 1: Tự Đánh Giá -->
+                <div id="tab-content-assessment" class="tab-content">
+                    <p class="text-stone-700 mb-6">
+                        Phân tích dựa trên bối cảnh ngành sản xuất áp lực cao (Production Activity). Kết quả cho thấy chân dung một "Người học thận trọng và có ý thức" (Conscious Learner).
+                    </p>
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+                        
+                        <!-- Chart Section -->
+                        <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                            <h2 class="text-xl font-semibold text-teal-700 mb-4">Tổng quan Năng lực (Sau khóa học)</h2>
+                            <p class="text-sm text-stone-600 mb-4">Biểu đồ thể hiện điểm trung bình tự đánh giá cho 4 nhóm năng lực (Thang 1-5).</p>
+                            <div class="chart-container">
+                                <canvas id="assessmentChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis & Quote Section -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                                <h2 class="text-xl font-semibold text-teal-700 mb-4">Phân tích Năng lực</h2>
+                                <div class="analysis-box text-sm text-stone-800 space-y-3">
+                                    <p><strong>Người học có ý thức (Conscious Incompetence):</strong> Việc chị Hiền tự đánh giá mức 2.0 ở hầu hết các kỹ năng kỹ thuật (GROW, SBI) là một tín hiệu rất tích cực. Nó cho thấy chị trung thực thừa nhận mình "biết lý thuyết nhưng chưa thạo thực hành", thay vì ảo tưởng về năng lực.</p>
+                                    <p><strong>Khoảng cách Niềm tin - Kỹ năng (The Belief-Skill Gap):</strong> Có sự chênh lệch thú vị ở Nhóm 4. Chị tin phong cách của mình giúp nhân viên chủ động (3.0) nhưng lại <em>chưa tin</em> coaching có thể cải thiện các chỉ số cứng như OEE hay Kaizen (2.0). Đây là rào cản tư duy lớn nhất cần vượt qua.</p>
+                                    <p><strong>Điểm nghẽn kỹ thuật:</strong> Điểm thấp đều ở kỹ năng đặt câu hỏi (GROW) và phản hồi (SBI) phản ánh thói quen "chỉ thị nhanh" đặc trưng của quản lý sản xuất.</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                                <h2 class="text-xl font-semibold text-teal-700 mb-4">Phản ánh & Kỹ năng Tâm đắc</h2>
+                                <div class="space-y-4">
+                                    <h3 class="font-semibold text-stone-800">Kỹ năng tâm đắc nhất:</h3>
+                                    <blockquote class="border-l-4 border-teal-500 pl-4 py-2 bg-teal-50 text-stone-700 italic">
+                                        "Tạo các câu hỏi gợi mở để Coachee chủ động."
+                                    </blockquote>
+                                    <p class="text-sm text-stone-600 pt-2"><strong>Phân tích Mentor:</strong> Chị đã xác định rất chính xác "thuốc giải" cho vấn đề của mình. Chuyển từ "nói" sang "hỏi" chính là chìa khóa để giải quyết vấn đề "nhân viên thiếu chủ động/không cẩn thận" mà chị đang gặp phải.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Details Table -->
+                    <div class="mt-6 bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                        <button id="toggleDetailsBtn" class="w-full flex justify-between items-center py-2 text-lg font-semibold text-teal-700 hover:text-teal-800 transition-colors">
+                            <span>Xem chi tiết 9 tiêu chí đánh giá (Tổng điểm trung bình thấp: ~2.2)</span>
+                            <svg id="toggleIcon" class="w-5 h-5 transition-transform transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                        <div id="detailsContent" class="hidden mt-4 pt-4 border-t border-stone-200">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-stone-200">
+                                    <thead class="bg-stone-50">
+                                        <tr>
+                                            <th scope="col" class="py-3 px-4 text-left text-xs font-medium text-stone-600 uppercase tracking-wider">Tiêu chí Năng lực</th>
+                                            <th scope="col" class="py-3 px-4 text-center text-xs font-medium text-stone-600 uppercase tracking-wider w-28">Điểm (1-5)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-stone-200">
+                                        <tr class="bg-stone-50"><td colspan="2" class="py-2 px-4 font-semibold text-stone-800">1. KỸ NĂNG NỀN TẢNG (TB: 2.33)</td></tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">1.1 Chủ động lắng nghe để hiểu nguyên nhân gốc rễ</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">1.2 Đặt câu hỏi mở, khơi gợi</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">1.3 Tạo không gian an toàn, tin cậy</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">3</td>
+                                        </tr>
+                                        <tr class="bg-stone-50"><td colspan="2" class="py-2 px-4 font-semibold text-stone-800">2. KỸ NĂNG CỐT LÕI - GROW (TB: 2.00)</td></tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">2.1 Sử dụng mô hình GROW để phát triển nhân viên</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">2.2 Sử dụng câu hỏi đóng (G-R) để chốt vấn đề</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">2.3 Ứng dụng quy trình GROW trong thực tế (ước tính)</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr class="bg-stone-50"><td colspan="2" class="py-2 px-4 font-semibold text-stone-800">3. KỸ NĂNG NÂNG CAO - SBI & ĐỘNG LỰC (TB: 2.00)</td></tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">3.1 Coaching người có chuyên môn cao nhưng ngại thay đổi</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">3.2 Coaching khơi gợi lại động lực cho nhân viên lâu năm</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                        <tr class="bg-stone-50"><td colspan="2" class="py-2 px-4 font-semibold text-stone-800">4. TÁC ĐỘNG ĐẾN KẾT QUẢ (TB: 2.50)</td></tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">4.1 Phong cách lãnh đạo thúc đẩy tinh thần chủ động (Mindset)</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">3</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="py-3 px-4 text-sm text-stone-700">4.2 Dùng coaching cải thiện chỉ số OEE, Kaizen, Lỗi (Skillset)</td>
+                                            <td class="py-3 px-4 text-sm text-stone-800 text-center font-medium">2</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Kế Hoạch 30 Ngày -->
+                <div id="tab-content-plan" class="tab-content hidden">
+                    <p class="text-stone-700 mb-6">
+                        Kế hoạch tập trung vào việc thay đổi một hành vi cốt lõi để giải quyết vấn đề "nhân viên thiếu chủ động".
+                    </p>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200">
+                        <h2 class="text-xl font-semibold text-teal-700 mb-4">Cam kết 30 Ngày</h2>
+                        <blockquote class="border-l-4 border-teal-500 pl-4 py-3 bg-teal-50 text-lg text-stone-800 italic font-medium">
+                            "Chuyển từ việc 'chỉ thị' sang việc 'lắng nghe và khơi gợi' để nhân viên chủ động hơn."
+                        </blockquote>
+
+                        <div class="mt-8">
+                            <h3 class="text-lg font-semibold text-stone-800 mb-4">Hành động cụ thể (Tuần 1 - Tuần 3):</h3>
+                            <div class="border border-stone-200 rounded-lg overflow-hidden">
+                                <div class="p-5 bg-stone-50 border-b border-stone-200">
+                                    <h4 class="font-semibold text-teal-700">HÀNH ĐỘNG 1 (Hạn chót: 21/11)</h4>
+                                </div>
+                                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <h5 class="font-medium text-stone-600 mb-2">Hành động cụ thể:</h5>
+                                        <p class="text-stone-800">Coaching cho ít nhất 1 nhân viên để họ nhận thức được điểm yếu của bản thân mình, chủ động nâng cao động lực và tinh thần trách nhiệm.</p>
+                                    </div>
+                                    <div>
+                                        <h5 class="font-medium text-stone-600 mb-2">Kết quả đo lường được:</h5>
+                                        <p class="text-stone-800">1 buổi Coaching hoàn chỉnh.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <h3 class="text-lg font-semibold text-teal-700 mb-3">Phân tích Kế hoạch</h3>
+                            <div class="analysis-box text-sm text-stone-800 space-y-3">
+                                <p><strong>Tư duy Nhân - Quả xuất sắc:</strong> Chị Hiền đã xây dựng một giả thuyết rất logic: Vì mình hay "chỉ thị" nên nhân viên "thụ động". Do đó, giải pháp phải là "lắng nghe/khơi gợi". Sự liên kết giữa Vấn đề (Task 1) và Giải pháp (Task 2) là hoàn hảo.</p>
+                                <p><strong>Tính Thận trọng:</strong> Chị chỉ cam kết 1 hành động duy nhất. Trong bối cảnh sản xuất bận rộn, đây là chiến lược "chậm mà chắc". Tuy nhiên, chỉ số đo lường "1 buổi coaching" mới chỉ là chỉ số hoạt động (Activity Metric), chưa phải chỉ số tác động (Impact Metric). Cần lưu ý chất lượng buổi coaching đó.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Check-in Tuần 1 -->
+                <div id="tab-content-checkin" class="tab-content hidden">
+                    <p class="text-stone-700 mb-6">
+                        Kết quả thực tế tuần đầu tiên cho thấy một chiến lược học tập thông minh: "Thử nghiệm trong vùng an toàn" (Safe Sandbox).
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200 flex flex-col">
+                            <h3 class="flex items-center text-lg font-semibold text-teal-700 mb-3">
+                                <span class="text-2xl mr-3">🏡</span>
+                                1. Điều đã áp dụng
+                            </h3>
+                            <p class="text-stone-700 flex-grow">
+                                "Thay vì thực hiện với nhân viên ngay, tôi đã thực hành với con trai về yêu cầu học tập. Thay vì đưa ra vấn đề, tôi hỏi: 'Nếu con không đạt học sinh giỏi lớp 12, điều gì sẽ xảy ra?'"
+                            </p>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200 flex flex-col">
+                            <h3 class="flex items-center text-lg font-semibold text-teal-700 mb-3">
+                                <span class="text-2xl mr-3">💡</span>
+                                2. Bài học rút ra
+                            </h3>
+                            <p class="text-stone-700 flex-grow">
+                                "Tôi nhận ra con tôi <strong>chủ động suy nghĩ</strong> và có nhận thức sâu sắc hơn là chỉ nghe mẹ nói như mọi khi. Phương pháp này thực sự hiệu quả."
+                            </p>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-stone-200 flex flex-col">
+                            <h3 class="flex items-center text-lg font-semibold text-teal-700 mb-3">
+                                <span class="text-2xl mr-3">🚀</span>
+                                3. Cam kết tuần tới
+                            </h3>
+                            <p class="text-stone-700 flex-grow">
+                                "Tôi sẽ cố gắng sử dụng câu hỏi mở trong 1 cuộc trò chuyện với cấp dưới (chuyển từ nhà đến nơi làm việc)."
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold text-teal-700 mb-3">Phân tích Check-in Tuần 1</h3>
+                        <div class="analysis-box text-sm text-stone-800 space-y-3">
+                            <p><strong>Chiến lược "Vùng an toàn":</strong> Chị Hiền chọn thực hành với con trước là một quyết định tuyệt vời để giảm rủi ro. Câu hỏi <em>"Điều gì sẽ xảy ra nếu...?"</em> chính là kỹ thuật khai thác Hệ quả (Consequences) trong mô hình GROW mà chị đã áp dụng rất tự nhiên.</p>
+                            <p><strong>Khoảnh khắc "Aha!":</strong> Chị đã tìm thấy bằng chứng sống (Living Proof): "Con chủ động suy nghĩ". Đây chính là liều thuốc tinh thần để củng cố niềm tin, giúp chị tự tin mang kỹ năng này vào môi trường sản xuất khắc nghiệt ở tuần sau.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tab 4: Phân tích & Lộ trình -->
+                <div id="tab-content-roadmap" class="tab-content hidden">
+                    
+                    <h2 class="text-3xl font-bold text-center text-indigo-700">Phân tích & Đề xuất Lộ trình Phát triển</h2>
+                    <p class="text-center text-stone-600 mb-6">Chẩn đoán chuyên sâu về rào cản trong môi trường Sản xuất và lộ trình hành động.</p>
+
+                    <div class="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-stone-200">
+                        
+                        <!-- Sub-navigation -->
+                        <div class="border-b border-stone-300">
+                            <nav class="flex -mb-px space-x-4 sm:space-x-6 overflow-x-auto" aria-label="Sub-tabs">
+                                <button id="sub-tab-btn-diagnosis" class="sub-tab-button py-3 px-2 sm:px-4 text-sm sm:text-base whitespace-nowrap border-b-2 font-medium border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400">
+                                    Chẩn đoán Cốt lõi
+                                </button>
+                                <button id="sub-tab-btn-tools" class="sub-tab-button py-3 px-2 sm:px-4 text-sm sm:text-base whitespace-nowrap border-b-2 font-medium border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400">
+                                    Công cụ & Kịch bản
+                                </button>
+                                <button id="sub-tab-btn-roadmap30" class="sub-tab-button py-3 px-2 sm:px-4 text-sm sm:text-base whitespace-nowrap border-b-2 font-medium border-indigo-600 text-indigo-700" aria-current="page">
+                                    Lộ trình 30 Ngày
+                                </button>
+                            </nav>
+                        </div>
+
+                        <div class="mt-6">
+                            <!-- Sub-tab 1: Core Diagnosis -->
+                            <div id="sub-tab-content-diagnosis" class="sub-tab-content hidden space-y-6">
+                                <div>
+                                    <h3 class="text-xl font-semibold text-indigo-700 mb-3">Xung đột: "Áp lực Sản xuất" vs "Thời gian Coaching"</h3>
+                                    <div class="analysis-box bg-indigo-50 border-l-4 border-indigo-500 text-stone-800 space-y-2 text-sm">
+                                        <p><strong>Bối cảnh:</strong> Là AM mảng Production Activity, chị Hiền chịu áp lực khủng khiếp từ các chỉ số OEE, Lỗi lắp ráp và An toàn. Khi sự cố xảy ra, phản xạ sinh tồn là "Chỉ thị" (Ra lệnh ngay để sửa lỗi).</p>
+                                        <p><strong>Hệ quả:</strong> Điều này giải thích tại sao điểm kỹ năng 1.1 (Lắng nghe) và 2.1 (GROW) thấp (2/5). Thói quen "giải quyết vấn đề tức thì" đang xung đột với tư duy "đặt câu hỏi". Rào cản không phải là chị không muốn làm, mà là môi trường đang "trừng phạt" sự chậm rãi của coaching.</p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="text-xl font-semibold text-indigo-700 mb-3">Điểm tựa để bứt phá</h3>
+                                    <div class="analysis-box bg-indigo-50 border-l-4 border-indigo-500 text-stone-800 space-y-2 text-sm">
+                                        <p><strong>Thành công nhỏ (Quick Win):</strong> Trải nghiệm thành công với con trai ở Tuần 1 là cực kỳ quan trọng. Nó chứng minh rằng: Khi chịu lắng nghe, đối phương sẽ thông minh hơn. Chị cần mang niềm tin này vào công xưởng: <em>"Nếu mình dừng ra lệnh 5 phút để hỏi, nhân viên sẽ cẩn thận hơn và lần sau mình không phải sửa lỗi nữa."</em></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sub-tab 2: Tools & Scenarios -->
+                            <div id="sub-tab-content-tools" class="sub-tab-content hidden space-y-8">
+                                <div>
+                                    <h3 class="text-xl font-semibold text-indigo-700 mb-4">Công cụ 1: Chuyển đổi "Chỉ thị" sang "Câu hỏi" (Dành cho Production)</h3>
+                                    <p class="text-sm text-stone-600 mb-3">Thay vì ra lệnh ngay khi thấy lỗi (trừ tình huống khẩn cấp an toàn), hãy dùng câu hỏi để kích hoạt tư duy của nhân viên.</p>
+                                    <div class="overflow-x-auto border border-stone-200 rounded-md">
+                                        <table class="min-w-full divide-y divide-stone-200">
+                                            <thead class="bg-stone-50">
+                                                <tr>
+                                                    <th class="py-3 px-4 text-left text-xs font-medium text-stone-600 uppercase w-1/2">Thay vì nói (Chỉ thị)</th>
+                                                    <th class="py-3 px-4 text-left text-xs font-medium text-stone-600 uppercase w-1/2">Hãy hỏi (GROW rút gọn)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-stone-200">
+                                                <tr>
+                                                    <td class="py-3 px-4 text-sm text-red-700">"Em làm sai rồi, sửa lại như thế kia ngay!"</td>
+                                                    <td class="py-3 px-4 text-sm text-green-700 font-medium">"Em nhìn xem kết quả thực tế (R) khác gì với tiêu chuẩn? Nguyên nhân là gì?"</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-3 px-4 text-sm text-red-700">"Lần sau phải cẩn thận hơn nghe chưa!"</td>
+                                                    <td class="py-3 px-4 text-sm text-green-700 font-medium">"Nếu tình huống này lặp lại, hậu quả (Consequence) sẽ là gì? Em định làm gì (W) để ngăn chặn nó?"</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="py-3 px-4 text-sm text-red-700">"Tại sao lại để OEE thấp thế này?"</td>
+                                                    <td class="py-3 px-4 text-sm text-green-700 font-medium">"Yếu tố nào đang ảnh hưởng lớn nhất đến OEE hiện tại? Em có ý tưởng gì (O) để cải thiện nó trong ca sau?"</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                 </div>
+                                 
+                                <div>
+                                    <h3 class="text-xl font-semibold text-indigo-700 mb-4">Công cụ 2: Mô hình SBI-D (Xử lý nhân viên "không cẩn thận")</h3>
+                                    <p class="text-sm text-stone-600 mb-3">Chị Hiền đang thiếu tự tin ở kỹ năng 2.2 (phản hồi). Đây là kịch bản để dùng cho cam kết ngày 21/11.</p>
+                                    <div class="border border-orange-300 bg-orange-50 rounded-md p-4">
+                                        <h4 class="font-semibold text-orange-800">KỊCH BẢN: Phản hồi nhân viên mắc lỗi lắp ráp</h4>
+                                        <ul class="list-disc list-outside pl-5 space-y-2 mt-2 text-orange-900 text-sm">
+                                            <li><strong>S (Situation):</strong> "Sáng nay lúc 10h, trên dây chuyền số 2..."</li>
+                                            <li><strong>B (Behavior):</strong> "...chị thấy em đã bỏ qua bước kiểm tra ốc vít cuối cùng..."</li>
+                                            <li><strong>I (Impact):</strong> "...Điều này dẫn đến rủi ro sản phẩm lỗi lọt ra khách hàng, ảnh hưởng đến uy tín bộ phận ta."</li>
+                                            <li><strong>D (Discovery/Question):</strong> "Em nghĩ sao về điều chị vừa nói? (Lắng nghe) -> Em dự định làm gì để đảm bảo quy trình?"</li>
+                                        </ul>
+                                    </div>
+                                 </div>
+                            </div>
+
+                            <!-- Sub-tab 3: 30-Day Roadmap -->
+                            <div id="sub-tab-content-roadmap30" class="sub-tab-content space-y-6">
+                                <p class="text-stone-600">Lộ trình được thiết kế theo nguyên tắc "Small Steps" (Bước nhỏ) để vượt qua sức ì và áp lực công việc.</p>
+                                
+                                <!-- Tuần 1 -->
+                                <div class="border border-green-300 rounded-lg opacity-70">
+                                    <div class="p-4 sm:p-5 bg-green-50 border-b border-green-300">
+                                        <h4 class="font-semibold text-green-700">TUẦN 1: Khởi động trong "Vùng an toàn" (Đã hoàn thành)</h4>
+                                    </div>
+                                    <div class="p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <h5 class="font-medium text-stone-600 mb-1">Hành động:</h5>
+                                            <p class="text-stone-800">Thực hành câu hỏi mở với con trai.</p>
+                                        </div>
+                                        <div>
+                                            <h5 class="font-medium text-stone-600 mb-1">Kết quả:</h5>
+                                            <p class="text-stone-800">Con chủ động suy nghĩ. Chị Hiền đã có trải nghiệm tích cực đầu tiên.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tuần 2 -->
+                                <div class="border border-stone-200 rounded-lg">
+                                    <div class="p-4 sm:p-5 bg-stone-50 border-b border-stone-200">
+                                        <h4 class="font-semibold text-indigo-700">TUẦN 2: "Micro-Coaching" (Hành vi vi mô)</h4>
+                                    </div>
+                                    <div class="p-4 sm:p-5 space-y-3">
+                                        <p class="text-sm text-stone-600">Chưa vội tổ chức buổi coaching chính thức. Hãy tập thói quen đặt câu hỏi ngắn ngay tại hiện trường.</p>
+                                        <div>
+                                            <h5 class="font-medium text-stone-600 mb-2">Hành động cụ thể:</h5>
+                                            <ul class="list-disc list-inside pl-2 text-stone-800 space-y-1 text-sm">
+                                                <li>Thực hiện đúng cam kết: Có 1 cuộc trò chuyện với cấp dưới dùng câu hỏi mở.</li>
+                                                <li>Trong các cuộc họp giao ban (Daily meeting): Thay vì chỉ thị 100%, hãy dành 1 câu hỏi: "Theo các bạn, nguyên nhân gốc rễ hôm nay là gì?"</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Tuần 3 -->
+                                <div class="border border-stone-200 rounded-lg">
+                                    <div class="p-4 sm:p-5 bg-stone-50 border-b border-stone-200">
+                                        <h4 class="font-semibold text-indigo-700">TUẦN 3: Thử thách lớn (Deadline 21/11)</h4>
+                                    </div>
+                                    <div class="p-4 sm:p-5 space-y-3">
+                                        <p class="text-sm text-stone-600">Thực hiện cam kết HÀNH ĐỘNG 1 trong Kế hoạch 30 ngày.</p>
+                                        <div>
+                                            <h5 class="font-medium text-stone-600 mb-2">Hành động cụ thể:</h5>
+                                            <ul class="list-disc list-inside pl-2 text-stone-800 space-y-1 text-sm">
+                                                <li>Chọn 1 nhân viên "thiếu chủ động/không cẩn thận".</li>
+                                                <li>Đặt lịch hẹn 15-30 phút (tránh giờ cao điểm sản xuất).</li>
+                                                <li>Áp dụng mô hình SBI-D (Công cụ 2) để phản hồi về sự thiếu cẩn thận, sau đó dùng GROW để họ tự đưa ra giải pháp.</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Tuần 4 -->
+                                <div class="border border-stone-200 rounded-lg">
+                                    <div class="p-4 sm:p-5 bg-stone-50 border-b border-stone-200">
+                                        <h4 class="font-semibold text-indigo-700">TUẦN 4: Đo lường Tác động (Kết nối OEE/Kaizen)</h4>
+                                    </div>
+                                    <div class="p-4 sm:p-5 space-y-3">
+                                        <p class="text-sm text-stone-600">Bắt đầu lấp đầy "Khoảng cách Niềm tin" (Mục 4.2 đánh giá năng lực).</p>
+                                        <div>
+                                            <h5 class="font-medium text-stone-600 mb-2">Hành động cụ thể:</h5>
+                                            <ul class="list-disc list-inside pl-2 text-stone-800 space-y-1 text-sm">
+                                                <li>Quan sát nhân viên đã được coach ở Tuần 3: Lỗi có giảm không? Họ có tự giác kiểm tra hơn không?</li>
+                                                <li>Ghi nhận (SBI tích cực) nếu họ có tiến bộ dù nhỏ nhất. Đây là bước quan trọng để duy trì động lực (Skill 3.2).</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Tab Elements
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            // Toggle Elements
+            const toggleBtn = document.getElementById('toggleDetailsBtn');
+            const detailsContent = document.getElementById('detailsContent');
+            const toggleIcon = document.getElementById('toggleIcon');
+            const toggleBtnText = toggleBtn.querySelector('span');
+
+            const activeClasses = 'border-teal-600 text-teal-700'.split(' ');
+            const inactiveClasses = 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400'.split(' ');
+            
+            // Sub-tab Elements
+            const subTabButtons = document.querySelectorAll('.sub-tab-button');
+            const subTabContents = document.querySelectorAll('.sub-tab-content');
+            const subActiveClasses = 'border-indigo-600 text-indigo-700'.split(' ');
+            const subInactiveClasses = 'border-transparent text-stone-500 hover:text-stone-700 hover:border-stone-400'.split(' ');
+
+            // --- Sub-tab Logic ---
+            function showSubTab(subTabId) {
+                subTabContents.forEach(content => content.classList.add('hidden'));
+                subTabButtons.forEach(button => {
+                    button.classList.remove(...subActiveClasses);
+                    button.classList.add(...subInactiveClasses);
+                    button.setAttribute('aria-current', 'false');
+                });
+                
+                const contentToShow = document.getElementById(`sub-tab-content-${subTabId}`);
+                if (contentToShow) contentToShow.classList.remove('hidden');
+                
+                const buttonToActivate = document.getElementById(`sub-tab-btn-${subTabId}`);
+                if (buttonToActivate) {
+                    buttonToActivate.classList.remove(...subInactiveClasses);
+                    buttonToActivate.classList.add(...subActiveClasses);
+                    buttonToActivate.setAttribute('aria-current', 'true');
+                }
+            }
+
+            subTabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const subTabId = button.id.replace('sub-tab-btn-', '');
+                    showSubTab(subTabId);
+                });
+            });
+
+            // --- Main Tab Logic ---
+            function showTab(tabId) {
+                tabContents.forEach(content => content.classList.add('hidden'));
+                
+                tabButtons.forEach(button => {
+                    if (button.id.includes('tab-btn-')) {
+                        const isRoadmapTab = button.id === 'tab-btn-roadmap';
+                        
+                        // Reset generic styles
+                        button.classList.remove(...activeClasses);
+                        button.classList.remove('border-indigo-600', 'text-indigo-700'); // Explicitly remove active roadmap styles
+                        
+                        // Apply inactive styles based on tab type
+                        if (isRoadmapTab) {
+                            button.classList.add('border-transparent', 'text-indigo-700', 'hover:text-indigo-800');
+                        } else {
+                            button.classList.add(...inactiveClasses);
+                        }
+                        button.setAttribute('aria-current', 'false');
+                    }
+                });
+
+                const contentToShow = document.getElementById(`tab-content-${tabId}`);
+                if (contentToShow) contentToShow.classList.remove('hidden');
+
+                const buttonToActivate = document.getElementById(`tab-btn-${tabId}`);
+                if (buttonToActivate) {
+                    const isRoadmapTab = tabId === 'roadmap';
+                    
+                    // Remove inactive styles
+                    if (isRoadmapTab) {
+                        buttonToActivate.classList.remove('border-transparent', 'text-indigo-700', 'hover:text-indigo-800');
+                        // Add active roadmap styles
+                        buttonToActivate.classList.add('border-indigo-600', 'text-indigo-700'); 
+                    } else {
+                        buttonToActivate.classList.remove(...inactiveClasses);
+                        buttonToActivate.classList.add(...activeClasses);
+                    }
+                    buttonToActivate.setAttribute('aria-current', 'true');
+                }
+            }
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.id.replace('tab-btn-', '');
+                    showTab(tabId);
+                });
+            });
+
+            // --- Toggle Logic ---
+            if (toggleBtn && detailsContent) {
+                toggleBtn.addEventListener('click', () => {
+                    const isHidden = detailsContent.classList.toggle('hidden');
+                    if (isHidden) {
+                        toggleIcon.classList.remove('rotate-180');
+                        toggleBtnText.textContent = 'Xem chi tiết 9 tiêu chí đánh giá (Tổng điểm trung bình thấp: ~2.2)';
+                    } else {
+                        toggleIcon.classList.add('rotate-180');
+                        toggleBtnText.textContent = 'Ẩn chi tiết đánh giá';
+                    }
+                });
+            }
+
+            // --- Chart.js Logic ---
+            const ctx = document.getElementById('assessmentChart');
+            if (ctx) {
+                // Data calculated from input:
+                // Group 1: (2+2+3)/3 = 2.33
+                // Group 2: (2+2+2)/3 = 2.00 (Assumed 2.3 is 2 based on context)
+                // Group 3: (2+2)/2 = 2.00
+                // Group 4: (3+2)/2 = 2.50
+                const assessmentData = {
+                    labels: [
+                        '1. Nền tảng (2.33)',
+                        '2. Cốt lõi - GROW (2.00)',
+                        '3. Nâng cao - SBI (2.00)',
+                        '4. Tác động (2.50)'
+                    ],
+                    datasets: [{
+                        label: 'Điểm Tự đánh giá',
+                        data: [2.33, 2.00, 2.00, 2.50],
+                        fill: true,
+                        backgroundColor: 'rgba(13, 148, 136, 0.2)', // Teal-500 low opacity
+                        borderColor: 'rgb(13, 148, 136)', // Teal-500
+                        pointBackgroundColor: 'rgb(13, 148, 136)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(13, 148, 136)'
+                    }]
+                };
+
+                new Chart(ctx.getContext('2d'), {
+                    type: 'radar',
+                    data: assessmentData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                min: 0,
+                                max: 5,
+                                stepSize: 1,
+                                angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                                grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                                pointLabels: {
+                                    font: { size: 12, weight: '600' },
+                                    color: '#44403c', // Stone-700
+                                    callback: function(label) {
+                                        return label.split(' (')[0];
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.r.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Initialize
+            showTab('assessment');
+            showSubTab('roadmap30');
+        });
+    </script>
+
+</body>
+</html>
